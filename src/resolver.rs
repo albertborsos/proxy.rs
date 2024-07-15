@@ -37,8 +37,6 @@ impl Default for GeoData {
 lazy_static! {
     pub static ref DNS_RESOLVER: TokioAsyncResolver =
         TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default()).unwrap();
-    pub static ref GEO_CITY: AsyncOnce<Reader<Vec<u8>>> =
-        AsyncOnce::new(async { open_geolite_db().await.unwrap() });
     pub static ref CACHED_HOSTS: Arc<Mutex<HashMap<String, String>>> =
         Arc::new(Mutex::new(HashMap::new()));
     pub static ref EXT_IP_HOSTS: Vec<String> = vec![
@@ -73,7 +71,8 @@ impl Resolver {
 
     pub async fn get_ip_info(&self, ip_address: IpAddr) -> GeoData {
         let mut geodata = GeoData::default();
-        if let Ok(lookup) = GEO_CITY.get().await.lookup::<City>(ip_address) {
+        let db = open_geolite_db().await.unwrap();
+        if let Ok(lookup) = db.lookup::<City>(ip_address) {
             if let Some(country) = &lookup.country {
                 if let Some(country_iso_code) = &country.iso_code {
                     geodata.iso_code = country_iso_code.to_string()
